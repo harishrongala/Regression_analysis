@@ -1,0 +1,123 @@
+---
+title: "Relation between miles per gallon and gear transmission type"
+author: "Harish Kumar Rongala"
+date: "January 20, 2017"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Executive Summary
+
+This document explores the relationship between **miles per gallon** (MPG) and factors that affect it. We used "mtcars" data set. It was extracted from the 1974 Motor Trend US magazine, which is about the automobile industry. It comprises fuel consumption and **10** aspects of automobile design and performance for **32** automobiles (1973-74 models).
+
+This document attempts to answer the following questions
+
++ Which provides better MPG, Automatic or manual transmission ?
++ Quantify the MPG difference between automatic and manual transmissions
+
+
+## Exploratory data analysis
+
+After looking at individual variable's relationship with **mpg** [appendix #Relationship plots], there seems to be a trend in the plots, showing positive or negative impact on the mpg. In the **regression models section** we will quantify this relationship. 
+
+The following 5 variables are factor variables but they are labeled as numeric class. We have to transform these variables in to factor class to make more sense of them in our modeling. 
+
+```{r echo=FALSE}
+names(mtcars)[lapply(mtcars[1:11],FUN = function(x){length(unique(x))})<10]
+```
+```{r}
+mtcars$cyl<-factor(mtcars$cyl);
+mtcars$vs<-factor(mtcars$vs);
+mtcars$am<-factor(mtcars$am);
+levels(mtcars$am)<-c("automatic","manual");
+mtcars$gear<-factor(mtcars$gear);
+mtcars$carb<-factor(mtcars$carb);
+```
+
+## Regression modeling
+
+As the dependent variable **mpg** is not binomial or a count variable, we use a linear model to fit our data. In our first model we include all the independent variables in the model, as we found that they have certain degree of impact on mpg from exploratory data analysis.
+```{r results="hide"}
+## Output of this fit can be found in appendix #Fit0
+fit0<-lm(mpg~.,data=mtcars);
+round(summary(fit0)$coef,3);
+```
+P-values of most variables are insignificant, so we drop those variables and re-fit the model. However, we don't drop **am** variable which indicates transmission mode. Because, we want to find the relation between **am** and **mpg**.
+
+```{r results="hide"}
+## Output of this fit can be found in appendix #Fit1
+fit1<-lm(mpg~am+hp+wt,data=mtcars);
+round(summary(fit1)$coef,3);
+```
+We use a step wise model selection algorithm based on **AIC** Akaike's 'An Information Criterion'.
+```{r results="hide"}
+better_fit<-step(fit0,direction = "both");
+```
+Now, we got 3 models. However we knew that first model - fit0 is too insignificant when compared to other two models. We use **anova** variance analysis technique to analyze our models.
+
+```{r}
+anova(fit1,better_fit);
+```
+Our anova test shows that model 3 - 'better_fit' is significant than 'fit1', with a P-value of **0.1**. Let's look at the coefficients given by this model.
+
+```{r}
+round(summary(better_fit)$coef,3);
+```
+
+
+## Inference & Conclusion
+
++ Cars with **Manual** transmission will have more miles per (US) gallon by a factor of **1.809**, over **automatic** transmission. This value is adjusted by considering horse power, weight and no. of cylinders.
++ **95%** of this factor lies between **-1.06 to 4.67**, as zero lies in the interval, we are not quite confident about its significance.
+
+
+## Diagnostics
+
+Refer appendix #Diagnostics plot, to find the diagnostics plot of the 'better_fit' model.
+
++ Residual Vs Fitted plot doesn't show any **systematic pattern** or **heteroskedasticity**, so our model fit is good.
++ Remaining plots show few outlier which have some **influence and leverage** on the model fit. The following car models are the outliers
+
+```{r}
+df<-as.data.frame(dfbetas(better_fit));
+rownames(df[df$ammanual %in% tail(sort(df$ammanual),4),]);
+
+```
+
+
+
+
+
+## Appendix
+
+### Relationship plots
+```{r warning=FALSE, echo=FALSE}
+library(datasets);
+data("mtcars");
+library(ggplot2);
+library(gridExtra);
+plot1<-ggplot(aes(mpg,cyl),data=mtcars)+geom_point()+geom_smooth(method = lm);
+plot2<-ggplot(aes(mpg,disp),data=mtcars)+geom_point()+geom_smooth(method = lm);
+plot3<-ggplot(aes(mpg,hp),data=mtcars)+geom_point()+geom_smooth(method = lm);
+plot4<-ggplot(aes(mpg,drat),data=mtcars)+geom_point()+geom_smooth(method = lm);
+plot5<-ggplot(aes(mpg,wt),data=mtcars)+geom_point()+geom_smooth(method = lm);
+plot6<-ggplot(aes(mpg,qsec),data=mtcars)+geom_point()+geom_smooth(method = lm);
+plot7<-ggplot(aes(mpg,vs),data=mtcars)+geom_point()+geom_smooth(method = lm);
+plot8<-ggplot(aes(mpg,am),data=mtcars)+geom_point()+geom_smooth(method = lm);
+plot9<-ggplot(aes(mpg,gear),data=mtcars)+geom_point()+geom_smooth(method = lm);
+plot10<-ggplot(aes(mpg,carb),data=mtcars)+geom_point()+geom_smooth(method = lm);
+grid.arrange(plot1,plot2,plot3,plot4,plot5,plot6,plot7,plot8,plot9,plot10,ncol=5);
+```
+
+### Diagnostics plot
+
+```{r echo=FALSE}
+par(mfrow=c(2,2));
+plot(better_fit);
+
+```
